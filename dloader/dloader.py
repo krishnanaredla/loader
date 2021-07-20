@@ -10,6 +10,7 @@ import re
 from typing import Dict, List
 import uuid
 
+from delta.tables import *
 import psycopg2
 import psycopg2.extras
 import yaml
@@ -399,14 +400,14 @@ def performFirstLoad(
             .partitionBy(partitionCol)
             .save(path)
         )
-        logger.info("Delta table created")
+        #logger.info("Delta table created")
         return {"status": "Success", "message": ""}
     except Exception as e:
-        logger.error(
-            "Failed while performing the Initial load for {0} error : {1}".format(
-                path, str(e)[:100]
-            )
-        )
+        #logger.error(
+        #    "Failed while performing the Initial load for {0} error : {1}".format(
+        #        path, str(e)[:100]
+        #    )
+        #)
         return {"status": "Failed", "message": str(e)}
         # raise DLoaderException(
         #    "Failed while loading the initial data into delta table : {0}".format(e)
@@ -447,14 +448,14 @@ def performDeltaLoad(df: DataFrame, path: str, pkey: str) -> Dict:
                 if col_name not in "mergeKey"
             }
         ).execute()
-        logger.info("Upsert Completed")
+        #logger.info("Upsert Completed")
         return {"status": "Success", "message": ""}
     except Exception as e:
-        logger.error(
-            "Failed while performing the Increamental load for {0} error : {1}".format(
-                path, str(e)[:100]
-            )
-        )
+        #logger.error(
+        #    "Failed while performing the Increamental load for {0} error : {1}".format(
+        #        path, str(e)[:100]
+        #    )
+        #)
         return {"status": "Failed", "message": str(e)}
         # raise DLoaderException(
         #    "Failed while loading the incremental data into delta table : {0}".format(e)
@@ -699,9 +700,6 @@ if __name__ == "__main__":
             .config(conf=sparkconf)
             .getOrCreate()
         )
-        spark.sparkContext.addPyFile("delta-core_2.12-1.0.0.jar")
-        from delta.tables import *
-
         logger = DLoaderLogger(spark).logger()
         logger.info("Starting the Reltio Stream job")
         main()

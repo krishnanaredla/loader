@@ -4,6 +4,7 @@ import yaml
 from typing import Dict
 import pytest
 import os
+import shutil
 
 
 def load_config(region: str = "disc", path: str = None) -> Dict:
@@ -19,6 +20,9 @@ def load_config(region: str = "disc", path: str = None) -> Dict:
             raise FileNotFoundError(exc)
     return config
 
+def pytest_configure():
+    pytest.spark = None
+
 
 @pytest.fixture(scope="session", autouse=True)
 def spark_test_session():
@@ -30,4 +34,8 @@ def spark_test_session():
         .config("spark.jars", "delta-core_2.12-1.0.0.jar")
         .getOrCreate()
     )
-    return spark
+    pytest.spark = spark
+    return  spark
+    #spark.stop()
+    #shutil.rmtree(str("/test"))
+
