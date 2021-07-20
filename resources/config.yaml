@@ -1,0 +1,23 @@
+Audit:
+  database: platform_ingestion_schema
+  user : postgres
+  password : postgres
+  host: 10.235.123.219
+  port: 5432
+
+spark:
+  config:
+    spark.serializer: org.apache.spark.serializer.KryoSerializer
+    spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+    spark.sql.catalog.spark_catalog : org.apache.spark.sql.delta.catalog.DeltaCatalog 
+    spark.databricks.delta.schema.autoMerge.enabled: 'true'
+    spark.hadoop.fs.s3a.access.key: 'dev'
+    spark.hadoop.fs.s3a.secret.key: 'dev'
+    spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    spark.hadoop.fs.s3a.endpoint: 'http://10.235.123.219:4566'
+    spark.hadoop.fs.s3a.path.style.access: 'true'
+    spark.hadoop.fs.s3a.connection.ssl.enabled: 'false'
+  name: DataLoader
+  parallelJobs : 2
+
+

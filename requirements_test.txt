@@ -1,0 +1,8 @@
+PyYAML==5.4.1
+psycopg2-binary==2.8.6
+
+pytest==6.0.1
+pytest-cov==2.10.1
+pytest-html==2.1.1
+pytest-metadata==1.10.0
+pytest-runner==5.2

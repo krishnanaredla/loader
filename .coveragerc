@@ -1,0 +1,24 @@
+[run]
+branch = True
+omit   = tests/*
+         project_name/driver.py
+		 */__init__.py
+
+[report]
+exclude_lines =
+    
+    if 0:
+    if __name__ == .__main__.:
+
+ignore_errors = False
+
+[html]
+directory     = Reports
+show_contexts = True
+title         = Code Coverage Report
+
+[xml]
+
+[json]
+
+pretty_print = True
