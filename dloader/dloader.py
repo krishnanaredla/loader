@@ -19,6 +19,9 @@ from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as f
 from pyspark.sql.types import *
 
+# Monkey patch
+spark = None
+logger = None
 
 class Error(Exception):
     pass
@@ -400,14 +403,14 @@ def performFirstLoad(
             .partitionBy(partitionCol)
             .save(path)
         )
-        #logger.info("Delta table created")
+        logger.info("Delta table created")
         return {"status": "Success", "message": ""}
     except Exception as e:
-        #logger.error(
-        #    "Failed while performing the Initial load for {0} error : {1}".format(
-        #        path, str(e)[:100]
-        #    )
-        #)
+        logger.error(
+            "Failed while performing the Initial load for {0} error : {1}".format(
+                path, str(e)[:100]
+            )
+        )
         return {"status": "Failed", "message": str(e)}
         # raise DLoaderException(
         #    "Failed while loading the initial data into delta table : {0}".format(e)

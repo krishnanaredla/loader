@@ -20,8 +20,10 @@ def load_config(region: str = "disc", path: str = None) -> Dict:
             raise FileNotFoundError(exc)
     return config
 
+
 def pytest_configure():
     pytest.spark = None
+    pytest.logger = None
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -34,8 +36,10 @@ def spark_test_session():
         .config("spark.jars", "delta-core_2.12-1.0.0.jar")
         .getOrCreate()
     )
+    log4jLogger = spark.sparkContext._jvm.org.apache.log4j
+    logger = log4jLogger.LogManager.getLogger("TESTING")
     pytest.spark = spark
-    return  spark
-    #spark.stop()
-    #shutil.rmtree(str("/test"))
-
+    pytest.logger = logger
+    yield spark
+    spark.stop()
+    shutil.rmtree(str("/test"))
