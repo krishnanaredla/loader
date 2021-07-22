@@ -1,6 +1,8 @@
 from dloader.dloader import *
 from pyspark.sql.types import *
 
+# data columns =  is_audit_col = 'N' - primary key - defining col
+
 data = [
     {
         "col_name": "customerId",

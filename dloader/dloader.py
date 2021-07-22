@@ -9,8 +9,9 @@ from operator import is_not
 import re
 from typing import Dict, List
 import uuid
+from json import loads
 
-from delta.tables import *
+# from delta.tables import *
 import psycopg2
 import psycopg2.extras
 import yaml
@@ -18,10 +19,14 @@ from pyspark import SparkConf
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as f
 from pyspark.sql.types import *
+from pyhocon import ConfigFactory
+from pyhocon.config_tree import ConfigTree
+
 
 # Monkey patch
 spark = None
 logger = None
+
 
 class Error(Exception):
     pass
@@ -50,6 +55,25 @@ class DLoaderLogger(object):
     def logger(self):
         component = "{}.{}".format(type(self).__module__, type(self).__name__)
         return self.log4jLogger.LogManager.getLogger(component)
+
+
+def parseConfig(location: str, fallback: str = None, convertToJson: bool = False):
+    """
+    Main function to retrieve the hocon configuration
+    :Args
+    @ location -- config location path
+    @ fallback -- fall back location path, default will be None
+    @ convertToJson -- converts configTree instance into json file
+    :Return pyhocon configTree instance or json string repesentation
+    """
+    if fallback is None:
+        config = ConfigFactory.parse_file(location)
+    else:
+        config = ConfigFactory.parse_file(location).with_fallback(fallback)
+    if convertToJson:
+        if isinstance(config, ConfigTree):
+            config = loads(re.sub(r'""', '"', to_json(config)))
+    return config
 
 
 class AuditManager:
@@ -123,14 +147,7 @@ class AuditManager:
                                             WHERE  step_name = 'File Registration'
                                                     AND step_status = 'DONE'
                                                     AND step_end_ts > (SELECT
-                                                        CASE
-                                                        WHEN Max(step_start_ts) IS
-                                                                NOT NULL THEN Max
-                                                        (
-                                                        step_start_ts)
-                                                        ELSE
-                                                        timestamp '1970-01-01 00:00:00'
-                                                                END
+                                                               COALESCE(MAX(step_start_ts),'1970-01-01 00:00:00')
                                                         FROM   file_process_step_log
                                                         WHERE  step_name = 'Data Loader'
                                                                 AND step_status = 'DONE'))  
@@ -331,7 +348,7 @@ def getDataCols(data: List[Dict]) -> List[str]:
     Return:
         List of columns to generate hash
     """
-    return list(
+    notAudit = list(
         filter(
             partial(is_not, None),
             list(
@@ -344,6 +361,9 @@ def getDataCols(data: List[Dict]) -> List[str]:
             ),
         )
     )
+    primary = getPrimaryKeys(data)
+
+    return [item for item in notAudit if item not in primary]
 
 
 def generateSchema(data: List[Dict]) -> StructType:
@@ -451,14 +471,14 @@ def performDeltaLoad(df: DataFrame, path: str, pkey: str) -> Dict:
                 if col_name not in "mergeKey"
             }
         ).execute()
-        #logger.info("Upsert Completed")
+        # logger.info("Upsert Completed")
         return {"status": "Success", "message": ""}
     except Exception as e:
-        #logger.error(
+        # logger.error(
         #    "Failed while performing the Increamental load for {0} error : {1}".format(
         #        path, str(e)[:100]
         #    )
-        #)
+        # )
         return {"status": "Failed", "message": str(e)}
         # raise DLoaderException(
         #    "Failed while loading the incremental data into delta table : {0}".format(e)
@@ -563,19 +583,26 @@ def processFile(fileMeta: Dict):
             }
         )
         filePath = "".join(
-            ["s3a://", fileMeta.get("bucket_name"), "/", fileMeta.get("filename")]
+            [
+                "s3a://",
+                fileMeta.get("bucket_name"),
+                "/",
+                fileMeta.get("filename"),
+            ]  # sample_file_20210101.csv
         )
         path = "".join(
             [
                 "s3a://",
                 fileMeta.get("bucket_name").replace("landing", "raw"),
                 "/",
-                str(re.sub(r"_\d+.csv", "", fileMeta.get("filename").split("/")[-1])),
+                str(
+                    re.sub(r"_\d+.csv", "", fileMeta.get("filename").split("/")[-1])
+                ),  # sample_file.parquet
                 ".parquet",
             ]
         )
         fileSchema = adt.getSchema(fp_id)
-        pkey = getPrimaryKeys(fileSchema)[0]
+        pkey = getPrimaryKeys(fileSchema)[0]  # TODO
         definingCol = getDefiningCol(fileSchema)[0]
         dataKeys = getDataCols(fileSchema)
         hashKeyCols = [pkey]
@@ -691,12 +718,16 @@ def load_config(region: str = "disc", path: str = None) -> Dict:
 
 parser = argparse.ArgumentParser(description="Data Loader")
 parser.add_argument("--config", "-c", required=False, help="Config yaml location")
+parser.add_argument(
+    "--region", "-r", default="dev", required=False, help="Dataloader ENV"
+)
 args = parser.parse_args()
 
 
 if __name__ == "__main__":
     try:
-        config = load_config(args.config)
+        # config = load_config(args.config)
+        config = parseConfig(args.config)[args.region]
         sparkconf = SparkConf().setAll(list(config["spark"]["config"].items()))
         spark = (
             SparkSession.builder.appName(config["spark"]["name"])
@@ -704,7 +735,7 @@ if __name__ == "__main__":
             .getOrCreate()
         )
         logger = DLoaderLogger(spark).logger()
-        logger.info("Starting the Reltio Stream job")
+        logger.info("Starting the Data Loader")
         main()
     except Exception as e:
         raise DLoaderException("Failed while initiated the job {0}".format(e))

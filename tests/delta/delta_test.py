@@ -189,8 +189,6 @@ def mock_spark(monkeypatch):
 
 def test_initialLoad(spark_test_session, mock_logger):
     spark = spark_test_session
-    log4jLogger = spark.sparkContext._jvm.org.apache.log4j
-    logger = log4jLogger.LogManager.getLogger("TESTING")
     df = spark.read.option("header", "true").csv("../fullLoad.csv")
     windowBy = Window.partitionBy(f.col(pkey)).orderBy(f.col(definingCol))
     df = (
